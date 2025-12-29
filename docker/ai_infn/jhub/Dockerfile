@@ -1,4 +1,4 @@
-FROM quay.io/jupyterhub/k8s-hub
+FROM quay.io/jupyterhub/k8s-hub:4.3.1
 
 # Import the shell scripts
 COPY *.sh /usr/local/etc/jupyterhub/jupyterhub_config.d/
