@@ -8,6 +8,14 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - contextdir: docker/ai_infn/jlab/
+            imagename: jlab-ai-infn:head
+          - contextdir: docker/ai_infn/jhub/
+            imagename: jhub-ai-infn:head
 
     steps:
       - name: Checkout repository
@@ -22,11 +30,13 @@ jobs:
 
       - name: Build custom Docker image
         run: |
-          IMAGE_NAME=ghcr.io/${{ github.repository }}/jlab-ai-infn:head
-          docker build -t $IMAGE_NAME docker/ai_infn/jlab/
+          IMAGE_NAME=ghcr.io/${{ github.repository }}/{{ matrix.imagename }}
+          docker build -t $IMAGE_NAME {{ matrix.contextdir }}
 
       - name: Push Docker image to GHCR
         run: |
-          IMAGE_NAME=ghcr.io/${{ github.repository }}/jlab-ai-infn:head
+          IMAGE_NAME=ghcr.io/${{ github.repository }}/{{ matrix.imagename }}
           docker push $IMAGE_NAME
+
+
 
