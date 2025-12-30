@@ -95,8 +95,6 @@ VKD_SIDECAR_NAME = os.environ.get("VKD_SIDECAR_NAME", "vkd")
 VKD_ADMIN_SERVICE_ACCOUNT = os.environ.get("VKD_ADMIN_SERVICE_ACCOUNT", "vkd-batch-admin")
 VKD_ADMIN_USER_GROUP = os.environ.get("VKD_ADMIN_USER_GROUP", "vkd")
 VKD_PORT = os.environ.get("VKD_PORT", "8000")
-VKD_MINIO_URL = os.environ.get("VKD_MINIO_URL", f"minio-singleuser.{JHUB_NAMESPACE}:9000")
-VKD_MINIO_MAXIMUM_FOLDER_SIZE_GB = os.environ.get("VKD_MINIO_MAXIMUM_FOLDER_SIZE_GB", "1.0")
 VKD_IMAGE_BRANCH = os.environ.get("VKD_IMAGE_BRANCH", "main")
 VKD_NAMESPACE = os.environ.get("VKD_NAMESPACE", "vkd")
 
@@ -730,10 +728,8 @@ class InfnSpawner(KubeSpawner):
         ADMIN="true" if self.check_privilege(VKD_ADMIN_USER_GROUP) else "",
         PORT=str(VKD_PORT),
         HTTP_PREFIX=f"/user/{self.get_user_name()}/proxy/{VKD_PORT}",
-        MINIO_SERVER=VKD_MINIO_URL, 
         NAMESPACE=VKD_NAMESPACE,
         ORIGIN_NAMESPACE=JHUB_NAMESPACE,
-        MAXIMUM_FOLDER_SIZE_GB=VKD_MINIO_MAXIMUM_FOLDER_SIZE_GB,
         )
 
       if JUICEFS_ENABLED and self.check_privilege('juicefs'):
@@ -747,10 +743,7 @@ class InfnSpawner(KubeSpawner):
               )
           )
 
-      secrets=dict(
-          MINIO_USER={'secretKeyRef': {"name": "minio-admin", "key": "minio-admin-user"}},
-          MINIO_PASSWORD={'secretKeyRef': {"name": "minio-admin", "key": "minio-admin-password"}},
-        )
+      secrets=dict()
 
       return dict(
           name=VKD_SIDECAR_NAME, #"vkd",
