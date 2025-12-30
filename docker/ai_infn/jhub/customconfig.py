@@ -418,94 +418,70 @@ class InfnSpawner(KubeSpawner):
 
     async def options_from_form(self, formdata):
         options = {}
-        options['img'] = list(DEFAULT_JLAB_IMAGES.values())[0]
-        self.image = options['img']
+        options['img'] = formdata['img']
+        container_image = ''.join(formdata['img'])
+        self.image = container_image
 
-        options['cpu'] = 4
+        options['cpu'] = formdata['cpu']
+        cpu = ''.join(formdata['cpu'])
         self.cpu_guarantee = 1.
-        self.cpu_limit = 4.
+        self.cpu_limit = float(cpu)
 
-        options['mem'] = '16G'
-        self.mem_guarantee = '16G'
-        self.mem_limit = '16G'
+        options['mem'] = formdata['mem']
+        memory = ''.join(formdata['mem'])
+        self.mem_guarantee = "2G"
+        self.mem_limit = memory
 
-        self.extra_resource_limits = {'ai.infn.it/fuse': 1}
+        accelerator = "".join(formdata['gpu'])
+        if accelerator in ["none"]:
+          self.node_affinity_preferred = [
+            _prefer_accelerator(
+              acc.get('node_selector', {'nvidia.com/gpu.product': acc.get('name')}), 
+              weight=acc.get('preference_weight', 50)
+              )
+            for acc in GPU_MODEL_DESCRIPTION
+            ]
 
-        if 'gpu' in formdata['instance']:
+        elif accelerator.startswith('gpu:'):
           options['gpu'] = True
-          self.extra_resource_guarantees = {'nvidia.com/gpu': 1}
-          self.extra_resource_limits.update({'nvidia.com/gpu': 1})
-        else:
-          options['gpu'] = False
 
+          _, model_gpu, n_gpus = accelerator.split(":")
+          gpu_data = {g['name']: g for g in GPU_MODEL_DESCRIPTION}.get(model_gpu)
+          if gpu_data is None:
+            raise Exception(f"Failed retrieving data for GPU model {model_gpu}")
+
+          ext_res = gpu_data.get('extended_resource', 'nvidia.com/gpu')
+          self.extra_resource_guarantees = {ext_res: n_gpus}
+          self.extra_resource_limits = {ext_res: n_gpus}
+
+          self.tolerations.append(
+            {"key": f"nvidia.com/gpu", "operator": "Exists", "effect": "PreferNoSchedule"}
+          )
+
+          self.node_affinity_preferred = [
+            _prefer_accelerator(
+              gpu_data.get('node_selector', {'nvidia.com/gpu.operator': gpu_data.get('name')}), 
+              weight=100
+              )
+          ]
+
+          # self.extra_pod_config.update ({
+          #         "runtimeClassName": "nvidia-cdi",
+          #     })
+
+        self.tolerations += [
+            {"key": "reserved", "operator": "Equal", "value": g, "effect": "NoSchedule"}
+            for g in self.get_user_groups()
+        ]
+
+        self.tolerations += [
+            {"key": "reserved", "operator": "Equal", "value": g, "effect": "PreferNoSchedule"}
+            for g in self.get_user_groups()
+        ]
+
+        logging.info("Affinity - preferred")
+        logging.info(self.node_affinity_preferred)
         return options
-
-    # async def options_from_form(self, formdata):
-    #     options = {}
-    #     options['img'] = formdata['img']
-    #     container_image = ''.join(formdata['img'])
-    #     self.image = container_image
-
-    #     options['cpu'] = formdata['cpu']
-    #     cpu = ''.join(formdata['cpu'])
-    #     self.cpu_guarantee = 1.
-    #     self.cpu_limit = float(cpu)
-
-    #     options['mem'] = formdata['mem']
-    #     memory = ''.join(formdata['mem'])
-    #     self.mem_guarantee = "2G"
-    #     self.mem_limit = memory
-
-    #     accelerator = "".join(formdata['gpu'])
-    #     if accelerator in ["none"]:
-    #       self.node_affinity_preferred = [
-    #         _prefer_accelerator(
-    #           acc.get('node_selector', {'nvidia.com/gpu.product': acc.get('name')}), 
-    #           weight=acc.get('preference_weight', 50)
-    #           )
-    #         for acc in GPU_MODEL_DESCRIPTION
-    #         ]
-
-    #     elif accelerator.startswith('gpu:'):
-    #       options['gpu'] = True
-
-    #       _, model_gpu, n_gpus = accelerator.split(":")
-    #       gpu_data = {g['name']: g for g in GPU_MODEL_DESCRIPTION}.get(model_gpu)
-    #       if gpu_data is None:
-    #         raise Exception(f"Failed retrieving data for GPU model {model_gpu}")
-
-    #       ext_res = gpu_data.get('extended_resource', 'nvidia.com/gpu')
-    #       self.extra_resource_guarantees = {ext_res: n_gpus}
-    #       self.extra_resource_limits = {ext_res: n_gpus}
-
-    #       self.tolerations.append(
-    #         {"key": f"nvidia.com/gpu", "operator": "Exists", "effect": "PreferNoSchedule"}
-    #       )
-
-    #       self.node_affinity_preferred = [
-    #         _prefer_accelerator(
-    #           gpu_data.get('node_selector', {'nvidia.com/gpu.operator': gpu_data.get('name')}), 
-    #           weight=100
-    #           )
-    #       ]
-
-    #       # self.extra_pod_config.update ({
-    #       #         "runtimeClassName": "nvidia-cdi",
-    #       #     })
-
-    #     self.tolerations += [
-    #         {"key": "reserved", "operator": "Equal", "value": g, "effect": "NoSchedule"}
-    #         for g in self.get_user_groups()
-    #     ]
-
-    #     self.tolerations += [
-    #         {"key": "reserved", "operator": "Equal", "value": g, "effect": "PreferNoSchedule"}
-    #         for g in self.get_user_groups()
-    #     ]
-
-    #     logging.info("Affinity - preferred")
-    #     logging.info(self.node_affinity_preferred)
-    #     return options
 
     #################################################################################
     #### SPLASH AND AUTHORIZATION
