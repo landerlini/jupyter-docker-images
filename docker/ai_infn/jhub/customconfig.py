@@ -92,6 +92,7 @@ METRICS_API_KEY = os.environ.get("JUPYTERHUB_METRICS_API_KEY")
 ENABLE_VKD = os.environ.get("ENABLE_VKD", "").lower() in ["true", "yes", "y"]
 VKD_SIDECAR_IMAGE = os.environ.get("VKD_SIDECAR_IMAGE", "harbor.cloud.infn.it/testbed-dm/vkd-dev:v0.0")
 VKD_SIDECAR_NAME = os.environ.get("VKD_SIDECAR_NAME", "vkd")
+VKD_SIDECAR_PULLPOLICY = os.environ.get("VKD_SIDECAR_PULLPOLICY", "IfNotPresent")
 VKD_ADMIN_SERVICE_ACCOUNT = os.environ.get("VKD_ADMIN_SERVICE_ACCOUNT", "vkd-batch-admin")
 VKD_ADMIN_USER_GROUP = os.environ.get("VKD_ADMIN_USER_GROUP", "vkd")
 VKD_PORT = os.environ.get("VKD_PORT", "8000")
@@ -747,7 +748,7 @@ class InfnSpawner(KubeSpawner):
 
       return dict(
           name=VKD_SIDECAR_NAME, #"vkd",
-          imagePullPolicy="IfNotPresent",
+          imagePullPolicy=VKD_SIDECAR_PULLPOLICY,
           image=VKD_SIDECAR_IMAGE, #"landerlini/vk-dispatcher:alpine.0",
           env=(
               [dict(name=k, value=v) for k,v in environment.items()] + 
