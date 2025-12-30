@@ -93,7 +93,8 @@ ENABLE_VKD = os.environ.get("ENABLE_VKD", "").lower() in ["true", "yes", "y"]
 VKD_SIDECAR_IMAGE = os.environ.get("VKD_SIDECAR_IMAGE", "harbor.cloud.infn.it/testbed-dm/vkd-dev:v0.0")
 VKD_SIDECAR_NAME = os.environ.get("VKD_SIDECAR_NAME", "vkd")
 VKD_SIDECAR_PULLPOLICY = os.environ.get("VKD_SIDECAR_PULLPOLICY", "IfNotPresent")
-VKD_ADMIN_SERVICE_ACCOUNT = os.environ.get("VKD_ADMIN_SERVICE_ACCOUNT", "vkd-batch-admin")
+VKD_ADMIN_SERVICE_ACCOUNT = os.environ.get("VKD_ADMIN_SERVICE_ACCOUNT", "vkd-admin")
+VKD_USER_SERVICE_ACCOUNT = os.environ.get("VKD_USER_SERVICE_ACCOUNT", "vkd-user")
 VKD_ADMIN_USER_GROUP = os.environ.get("VKD_ADMIN_USER_GROUP", "vkd")
 VKD_PORT = os.environ.get("VKD_PORT", "8000")
 VKD_IMAGE_BRANCH = os.environ.get("VKD_IMAGE_BRANCH", "main")
@@ -700,7 +701,7 @@ class InfnSpawner(KubeSpawner):
     @property
     def service_account(self):
       if ENABLE_VKD:
-        return VKD_ADMIN_SERVICE_ACCOUNT #"vkd-batch-admin"
+        return VKD_ADMIN_SERVICE_ACCOUNT if self.check_privilege('vkd') else VKD_USER_SERVICE_ACCOUNT
       else:
         return None
 
