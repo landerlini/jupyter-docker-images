@@ -103,6 +103,8 @@ VKD_NAMESPACE = os.environ.get("VKD_NAMESPACE", "vkd")
 
 SYSTEM_VOLUMES = json.loads(os.environ.get("SYSTEM_VOLUMES", '["www", "vkd"]'))
 
+EXTENDED_RESOURCES = json.loads(os.environ.get("EXTENDED_RESOURCES", '["ai.infn.it/fuse"]'))
+
 
 if "JUPYTERHUB_CRYPT_KEY" not in os.environ.keys():
   raise Exception(
@@ -432,6 +434,9 @@ class InfnSpawner(KubeSpawner):
         self.mem_guarantee = "2G"
         self.mem_limit = memory
 
+        self.extra_resource_guarantees = {k: 1 for k in EXTENDED_RESOURCES}
+        self.extra_resource_limits =  {k: 1 for k in EXTENDED_RESOURCES}
+
         accelerator = "".join(formdata['gpu'])
         if accelerator in ["none"]:
           self.node_affinity_preferred = [
@@ -451,8 +456,8 @@ class InfnSpawner(KubeSpawner):
             raise Exception(f"Failed retrieving data for GPU model {model_gpu}")
 
           ext_res = gpu_data.get('extended_resource', 'nvidia.com/gpu')
-          self.extra_resource_guarantees = {ext_res: n_gpus}
-          self.extra_resource_limits = {ext_res: n_gpus}
+          self.extra_resource_guarantees.update({ext_res: n_gpus})
+          self.extra_resource_limits.update({ext_res: n_gpus})
 
           self.tolerations.append(
             {"key": f"nvidia.com/gpu", "operator": "Exists", "effect": "PreferNoSchedule"}
