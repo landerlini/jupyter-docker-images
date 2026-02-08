@@ -11,6 +11,7 @@ RUN mkdir -p /aiinfn/.tabby && cd /aiinfn && \
 
 COPY ./init_tabbyml_users.py /aiinfn/
 COPY ./entrypoint.sh /aiinfn/
+RUN chmod +x /aiinfn/entrypoint.sh
 COPY ./config.toml /aiinfn/.tabby/
 
 WORKDIR /aiinfn
