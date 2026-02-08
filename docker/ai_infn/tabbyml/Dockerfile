@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y wget && apt-get clean
 RUN mkdir -p /aiinfn/.tabby && cd /aiinfn && \
     useradd -md /aiinfn aiinfn && \
     chown -R aiinfn /aiinfn && \
-    wget https://github.com/TabbyML/tabby/releases/download/v0.32.0/tabby_x86_64-manylinux_2_28.tar.gz && \
+    wget https://github.com/TabbyML/tabby/releases/download/v0.31.2/tabby_x86_64-manylinux_2_28.tar.gz && \
     tar xfvz tabby_x86_64-manylinux_2_28.tar.gz && \
     cp tabby_x86_64-manylinux_2_28/tabby ./ && \
     rm -rf tabby_x86_64-manylinux_2_28 tabby_x86_64-manylinux_2_28.tar.gz && \
