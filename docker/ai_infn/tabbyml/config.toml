@@ -1,0 +1,17 @@
+[model.chat.http]
+kind = "openai/chat"
+model_name = "codestral:22b"
+api_endpoint = "http://ollama.tabbyml.svc:11434/v1"
+
+[model.completion.http]
+kind = "openai/completion"
+model_name = "codellama:13b"
+api_endpoint = "http://ollama.tabbyml.svc:11434"
+prompt_template = "<PRE> {prefix} <SUF>{suffix} <MID>"
+
+[model.embedding.http]
+kind = "openai/embedding"
+model_name = "nomic-embed-text"
+api_endpoint = "http://ollama.tabbyml.svc:11434"
+
+

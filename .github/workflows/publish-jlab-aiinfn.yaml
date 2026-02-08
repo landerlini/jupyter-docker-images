@@ -22,6 +22,11 @@ jobs:
             baseimagename: ""
             baseimagecontext: ""
 
+          - contextdir: docker/ai_infn/tabbyml/
+            imagename: tabbyml:head
+            baseimagename: ""
+            baseimagecontext: ""
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
