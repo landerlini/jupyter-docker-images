@@ -16,6 +16,7 @@ COPY ./init_tabbyml_users.py /aiinfn/
 COPY ./entrypoint.sh /aiinfn/
 RUN chmod +x /aiinfn/entrypoint.sh
 COPY ./config.toml /aiinfn/.tabby/
+COPY ./db.sqlite /aiinfn/.tabby/
 
 WORKDIR /aiinfn
 USER aiinfn
