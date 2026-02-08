@@ -16,4 +16,4 @@ COPY ./config.toml /aiinfn/.tabby/
 WORKDIR /aiinfn
 USER aiinfn
 
-ENTRYPOINT ['./entrypoint.sh']
+ENTRYPOINT ["./entrypoint.sh"]
