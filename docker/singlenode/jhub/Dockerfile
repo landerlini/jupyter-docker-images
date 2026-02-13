@@ -1,9 +1,10 @@
-# Image name: harbor.cloud.infn.it/datacloud-templates/jhub-naas:2.0.0
+# Image name: harbor.cloud.infn.it/datacloud-jupyter/jhub-singlenode:2.1.1
 
 FROM jupyterhub/jupyterhub:4.1.5
 
 #RUN mkdir -p /.init
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends wget  && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 

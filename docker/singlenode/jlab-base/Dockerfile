@@ -1,4 +1,4 @@
-# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-base:2.0.0
+# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.1
 
 ARG BASE_IMAGE="quay.io/jupyter/minimal-notebook:ubuntu-22.04" 
 FROM ${BASE_IMAGE}
@@ -62,7 +62,8 @@ RUN python3 -m pip install --no-cache-dir \
         tornado 
 
 # Install vscode
-RUN curl -fsSL https://code-server.dev/install.sh | sh
+# Old: https://code-server.dev/install.sh
+RUN curl -fsSL https://raw.githubusercontent.com/cdr/code-server/main/install.sh | sh
 RUN python3 -m pip install \ 
         git+https://github.com/infn-datacloud/jupyter_codeserver_proxy.git \
         jupyter-resource-usage \
