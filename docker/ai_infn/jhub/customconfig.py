@@ -671,28 +671,28 @@ class InfnSpawner(KubeSpawner):
     #### INITIALIZATION SCRIPT
     #### ---------------------
     
-    @property
-    def lifecycle_hooks(self):
-        storage = self.get_user_storage()
-        if NFS_SERVER_ADDRESS is not None:
-            return {
-                "postStart": {
-                  "exec": {
-                    # "command": ["sudo", "-u", self.get_user_name(), "/bin/bash", str(STARTUP_SCRIPT)] + storage
-                    "command": [
-                        "/bin/bash", 
-                        "-c", 
-                        f"""
-                        if [ -r /envs/root_setup.sh ]; then
-                            source /envs/root_setup.sh &> /tmp/setup.log
-                        fi
-                        """
-                      ]
-                    }
-                  }
-              }
-
-        return dict()
+    # @property
+    # def lifecycle_hooks(self):
+    #     storage = self.get_user_storage()
+    #     if NFS_SERVER_ADDRESS is not None:
+    #         return {
+    #             "postStart": {
+    #               "exec": {
+    #                 # "command": ["sudo", "-u", self.get_user_name(), "/bin/bash", str(STARTUP_SCRIPT)] + storage
+    #                 "command": [
+    #                     "/bin/bash", 
+    #                     "-c", 
+    #                     f"""
+    #                     if [ -r /envs/root_setup.sh ]; then
+    #                         source /envs/root_setup.sh &> /tmp/setup.log
+    #                     fi
+    #                     """
+    #                   ]
+    #                 }
+    #               }
+    #           }
+    # 
+    #     return dict()
        
     #################################################################################
     #### ADDITIONAL SERVICES
