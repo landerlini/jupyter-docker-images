@@ -14,7 +14,7 @@ jobs:
         include:
           - contextdir: docker/ai_infn/jlab/
             imagename: jlab-ai-infn:head
-            baseimagename: harbor.cloud.infn.it/datacloud-templates/jlab-base:2.0.0
+            baseimagename: harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.1
             baseimagecontext: docker/singlenode/jlab-base
 
           - contextdir: docker/ai_infn/jhub/
