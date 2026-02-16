@@ -896,6 +896,7 @@ c.KubeSpawner.extra_container_config = {
             "privileged": False,
             "allowPrivilegeEscalation": True,
             "runAsUser": 0,
+            "seccompProfile": "Unconfined",
             "capabilities": {
                         "add": ["SYS_ADMIN", "CAP_CHROOT"]
                     }
