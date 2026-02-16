@@ -893,7 +893,7 @@ c.JupyterHub.hub_connect_ip = 'hub.jhub.svc.cluster.local'
 c.KubeSpawner.extra_container_config = {
     "imagePullPolicy": "Always",
     "securityContext": {
-            "privileged": False,
+            "privileged": True,
             "allowPrivilegeEscalation": True,
             "runAsUser": 0,
             "capabilities": {
