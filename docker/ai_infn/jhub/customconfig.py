@@ -896,9 +896,9 @@ c.KubeSpawner.extra_container_config = {
             "privileged": False,
             "allowPrivilegeEscalation": True,
             "runAsUser": 0,
-            # "capabilities": {
-            #             "add": ["SYS_ADMIN"]
-            #         }
+            "capabilities": {
+                        "add": ["SYS_ADMIN"]
+                    }
         }
 }
 
