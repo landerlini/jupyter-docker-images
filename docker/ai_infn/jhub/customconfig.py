@@ -864,7 +864,7 @@ InfnSpawner.initialize_nfs_volumes()
 
 # c.KubeSpawner.cmd = ["/usr/local/bin/start.sh"]
 # c.KubeSpawner.args = ["--allow-root"]
-c.KubeSpawner.privileged = False
+c.KubeSpawner.privileged = True
 c.KubeSpawner.allow_privilege_escalation = False
 
 c.KubeSpawner.extra_pod_config = {
@@ -879,7 +879,7 @@ c.KubeSpawner.extra_pod_config = {
 
 c.KubeSpawner.extra_container_config = {
     "securityContext": {
-            "privileged": False,
+            "privileged": True,
             # "capabilities": {
             #             "add": ["SYS_ADMIN"]
             #         }
