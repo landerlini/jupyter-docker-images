@@ -864,8 +864,8 @@ InfnSpawner.initialize_nfs_volumes()
 
 # c.KubeSpawner.cmd = ["/usr/local/bin/start.sh"]
 # c.KubeSpawner.args = ["--allow-root"]
-c.KubeSpawner.privileged = False
-c.KubeSpawner.allow_privilege_escalation = True
+# c.KubeSpawner.privileged = False
+# c.KubeSpawner.allow_privilege_escalation = True
 
 c.KubeSpawner.extra_pod_config = {
     "automountServiceAccountToken": True,
@@ -890,15 +890,17 @@ c.JupyterHub.hub_connect_ip = 'hub.jhub.svc.cluster.local'
 # c.KubeSpawner.notebook_dir = f"/{HOME_NAME}"
 # c.KubeSpawner.default_url = "/lab"
 
-#c.KubeSpawner.extra_container_config = {
-#    "imagePullPolicy": "Always",
-#    "securityContext": {
-#            "privileged": False,
-#            # "capabilities": {
-#            #             "add": ["SYS_ADMIN"]
-#            #         }
-#        }
-#}
+c.KubeSpawner.extra_container_config = {
+    "imagePullPolicy": "Always",
+    "securityContext": {
+            "privileged": False,
+            "allowPrivilegeEscalation": True,
+            "runAsUser": 0,
+            # "capabilities": {
+            #             "add": ["SYS_ADMIN"]
+            #         }
+        }
+}
 
 c.KubeSpawner.http_timeout = START_TIMEOUT
 c.KubeSpawner.start_timeout = START_TIMEOUT
