@@ -898,7 +898,7 @@ c.KubeSpawner.extra_container_config = {
             "runAsUser": 0,
             "seccompProfile": {"type": "Unconfined"},
             "capabilities": {
-                        "add": ["SYS_ADMIN", "CAP_CHROOT"]
+                        "add": ["SYS_ADMIN", "CAP_CHROOT", "CAP_DAC_READ_SEARCH"]
                     }
         }
 }
