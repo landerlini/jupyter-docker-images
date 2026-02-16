@@ -865,7 +865,7 @@ InfnSpawner.initialize_nfs_volumes()
 # c.KubeSpawner.cmd = ["/usr/local/bin/start.sh"]
 # c.KubeSpawner.args = ["--allow-root"]
 c.KubeSpawner.privileged = False
-c.KubeSpawner.allow_privilege_escalation = False
+c.KubeSpawner.allow_privilege_escalation = True
 
 c.KubeSpawner.extra_pod_config = {
     "automountServiceAccountToken": True,
