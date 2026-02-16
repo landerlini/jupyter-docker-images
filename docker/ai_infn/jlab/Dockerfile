@@ -15,7 +15,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     add-apt-repository -y ppa:apptainer/ppa && \
     apt update --allow-unauthenticated && \
     apt install -y \
-      apptainer \
+      apptainer-suid \
 #      cvmfs \
 #      cvmfs-fuse3 \
       cvmfs-libs \
