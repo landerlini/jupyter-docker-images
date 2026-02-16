@@ -21,6 +21,11 @@ print (f"Processing NB_GROUPS={os.environ.get('NB_GROUPS', '')}")
 groups = os.environ.get("NB_GROUPS", "").split(", ")
 username = os.environ.get("NB_USER", os.environ.get("JUPYTERHUB_USER", "jovyan"))
 
+with open("/etc/subuid", "w") as f:
+  f.write("%(username)s:100000:65536" % dict(user=username))
+with open("/etc/subgid", "w") as f:
+  f.write("%(username)s:100000:65536" % dict(user=username))
+
 for group in groups:
     try:
         gid, groupname = group.split(":")
