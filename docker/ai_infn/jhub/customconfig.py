@@ -65,6 +65,9 @@ JUICEFS_METADATA_DB = os.environ.get("JUICEFS_METADATA_DB", "")
 JUICEFS_FILESYSTEM_NAME = os.environ.get("JUICEFS_FILESYSTEM_NAME", "")
 CVMFS_CLAIM_NAME = os.environ.get("CVMFS_CLAIM_NAME", "")
 
+PRIVILEGED_USERS = (os.environ.get("PRIVILEGED_USERS", "no") in ["true", "yes", "y"]) 
+
+
 STARTUP_SCRIPT = Path(os.environ.get("STARTUP_SCRIPT", "/envs/setup.sh"))
 DEBUG = os.environ.get("DEBUG", "").lower() in ["true", "yes", "y"]
 HOME_NAME = os.environ.get("HOME_NAME", "home")
@@ -893,7 +896,7 @@ c.JupyterHub.hub_connect_ip = 'hub.jhub.svc.cluster.local'
 c.KubeSpawner.extra_container_config = {
     "imagePullPolicy": "Always",
     "securityContext": {
-            "privileged": False,
+            "privileged": PRIVILEGED_USERS,
             "allowPrivilegeEscalation": True,
             "runAsUser": 0,
             "seccompProfile": {"type": "Unconfined"},
