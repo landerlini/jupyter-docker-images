@@ -877,28 +877,28 @@ c.KubeSpawner.extra_pod_config = {
 #   "JUPYTERHUB_SINGLEUSER_APP": "jupyter_server.serverapp.ServerApp",
 # }
 
-c.KubeSpawner.extra_container_config = {
-    "securityContext": {
-            "privileged": False,
-            # "capabilities": {
-            #             "add": ["SYS_ADMIN"]
-            #         }
-        }
-}
+# c.KubeSpawner.extra_container_config = {
+#    "securityContext": {
+#            "privileged": False,
+#            # "capabilities": {
+#            #             "add": ["SYS_ADMIN"]
+#            #         }
+#        }
+#}
 
 c.JupyterHub.hub_connect_ip = 'hub.jhub.svc.cluster.local'
 # c.KubeSpawner.notebook_dir = f"/{HOME_NAME}"
 # c.KubeSpawner.default_url = "/lab"
 
-c.KubeSpawner.extra_container_config = {
-    "imagePullPolicy": "Always",
-    "securityContext": {
-            "privileged": False,
-            # "capabilities": {
-            #             "add": ["SYS_ADMIN"]
-            #         }
-        }
-}
+#c.KubeSpawner.extra_container_config = {
+#    "imagePullPolicy": "Always",
+#    "securityContext": {
+#            "privileged": False,
+#            # "capabilities": {
+#            #             "add": ["SYS_ADMIN"]
+#            #         }
+#        }
+#}
 
 c.KubeSpawner.http_timeout = START_TIMEOUT
 c.KubeSpawner.start_timeout = START_TIMEOUT
