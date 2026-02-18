@@ -16,6 +16,7 @@ import traceback
 
 from oauthenticator.oauth2 import OAuthenticator
 from oauthenticator.generic import GenericOAuthenticator
+from oauthenticator.google import GoogleOAuthenticator
 from tornado import gen
 from tornado.web import HTTPError
 from kubespawner import KubeSpawner
@@ -26,6 +27,7 @@ import subprocess
 import warnings
 import asyncio
 import shutil
+import string
 
 from typing import Dict, Collection
 
@@ -41,12 +43,51 @@ from kubernetes_asyncio.client.models import (
 
 ################################################################################
 ## Configurable environment
-OAUTH_CALLBACK_URL = os.environ["OAUTH_CALLBACK_URL"]
-OAUTH_ENDPOINT = os.environ["OAUTH_ENDPOINT"]
-OAUTH_GROUPS = os.environ["OAUTH_GROUPS"]
-OAUTH_ADMIN_GROUPS = os.environ["OAUTH_ADMIN_GROUPS"]
+
+################################################################################
+## Authentication
+AUTHENTICATOR = os.environ.get("AUTHENTICATOR", "IAM")
+if AUTHENTICATOR not in ["IAM", "GOOGLE"]:
+    raise Exception(f"Unsupported authenticator {AUTHENTICATOR}. Supported values are: IAM, GOOGLE.")
+
+# Used by both GOOGLE and IAM authenticators
 IAM_CLIENT_ID = os.environ["IAM_CLIENT_ID"]
 IAM_CLIENT_SECRET = os.environ["IAM_CLIENT_SECRET"]
+
+# Only relevant for GOOGLE authenticator
+ALLOWED_GOOGLE_DOMAINS = json.loads(
+    os.environ.get("ALLOWED_GOOGLE_DOMAINS", '["unifi.it", "edu.unifi.it"]')
+)
+ALLOWED_GOOGLE_USERS = json.loads(
+    os.environ.get("ALLOWED_GOOGLE_USERS", '[]')
+)
+ADMIN_GOOGLE_USERS = json.loads(
+    os.environ.get("ADMIN_GOOGLE_USERS", '[]')
+)
+
+BANNED_GOOGLE_USERS = json.loads(
+    os.environ.get("BANNED_GOOGLE_USERS", '[]')
+)
+
+# Only relevant for IAM authenticator
+OAUTH_CALLBACK_URL = os.environ.get("OAUTH_CALLBACK_URL")
+OAUTH_ENDPOINT = os.environ.get("OAUTH_ENDPOINT")
+OAUTH_GROUPS = os.environ.get("OAUTH_GROUPS")
+OAUTH_ADMIN_GROUPS = os.environ.get("OAUTH_ADMIN_GROUPS")
+
+if AUTHENTICATOR == "IAM" and OAUTH_CALLBACK_URL is None:
+    raise Exception("OAUTH_CALLBACK_URL Oenvironment variables must be set when using IAM authenticator.")
+if AUTHENTICATOR == "IAM" and OAUTH_ENDPOINT is None:
+    raise Exception("OAUTH_ENDPOINT Oenvironment variables must be set when using IAM authenticator.")
+if AUTHENTICATOR == "IAM" and OAUTH_GROUPS is None:
+    raise Exception("OAUTH_GROUPS Oenvironment variables must be set when using IAM authenticator.")
+if AUTHENTICATOR == "IAM" and OAUTH_ADMIN_GROUPS is None:
+    raise Exception("OAUTH_GROUPS Oenvironment variables must be set when using IAM authenticator.")
+
+
+
+################################################################################
+## File system
 START_TIMEOUT = int(os.environ.get("START_TIMEOUT", 20))
 NFS_MOUNT_POINT = Path(os.environ.get("NFS_MOUNT_POINT", "/nfs-shared"))
 NFS_SERVER_ADDRESS = os.environ.get("NFS_SERVER_ADDRESS")
@@ -66,7 +107,6 @@ JUICEFS_FILESYSTEM_NAME = os.environ.get("JUICEFS_FILESYSTEM_NAME", "")
 CVMFS_CLAIM_NAME = os.environ.get("CVMFS_CLAIM_NAME", "")
 
 PRIVILEGED_USERS = (os.environ.get("PRIVILEGED_USERS", "no") in ["true", "yes", "y"]) 
-
 
 STARTUP_SCRIPT = Path(os.environ.get("STARTUP_SCRIPT", "/envs/setup.sh"))
 DEBUG = os.environ.get("DEBUG", "").lower() in ["true", "yes", "y"]
@@ -120,7 +160,7 @@ logging.basicConfig(
     level=logging.DEBUG if DEBUG else logging.INFO,
 )
 
-logging.info("Starting custom INFN configuration of JupyterHub Spawner")
+logging.info("Starting custom INFN configuration of JupyterHub Spawner (from ConfigMap)")
 for global_var in list(globals().keys()):
   if global_var.upper() == global_var:
     logging.info(f"{global_var.replace('_', ' ') + ':':<30s} {pformat(globals().get(global_var))}")
@@ -159,6 +199,74 @@ async def kubernetes_api(group: str = 'core'):
         logging.error(traceback.print_exc())
         raise Exception("Unknown kubernetes error")
 
+
+class ConfigurableGoogleAuthenticator(GoogleOAuthenticator):
+    """
+    Configurable GoogleOAuthenticator specialized for Gmail-provided identities.
+    """
+
+    async def authenticate(self, handler, data=None):
+      auth_model = await GenericOAuthenticator.authenticate(self, handler, data)
+      pprint ("User info:")
+      user_info = auth_model["auth_state"][self.user_auth_state_key]
+      pprint(user_info)
+
+      domain = user_info.get('domain')
+      email = user_info.get('email')
+      user_admin = (email in ADMIN_GOOGLE_USERS)
+      user_banned = (email in BANNED_GOOGLE_USERS)
+      user_allowed = (not user_banned) and (
+          user_admin or 
+          (email in ALLOWED_GOOGLE_USERS) or
+          (domain in ALLOWED_GOOGLE_DOMAINS)
+      )
+
+      if user_banned:
+          error_msg = f"Your email '{email}' is not banned. Get in touch with the administrator if you think this is a mistake."
+          self.log.error(error_msg)
+          raise HTTPError(403, error_msg)
+
+      if not user_allowed:
+          error_msg = f"This service is reserved to @unifi.it users. Your email '{email}' is not allowed."
+          self.log.error(error_msg)
+          raise HTTPError(403, error_msg)
+
+      auth_model['admin'] = user_admin
+
+      return auth_model
+
+
+    @gen.coroutine
+    def pre_spawn_start(self, user, spawner):
+        """
+        Function called during the spawning process to:
+         * make sure the user is still authenticated and belongs to the right groups
+         * copy (some) of the authentication tokens to the spawned single-user server as env var
+
+        """
+        auth_state = yield user.get_auth_state()
+        if not auth_state:
+            # user has no auth state
+            warnings.warn("Could not retrieve user's auth_state at spawning")
+            return
+
+        domain = auth_state.get('domain')
+        email = auth_state.get('email')
+        user_admin = (email in ('landerlini@gmail.com',))
+        user_allowed = (domain in 'unifi.it')
+
+        if not user_allowed:
+            error_msg = f"User is not member of any of the allowed groups: {','.join(allowed_groups)}"
+            self.log.error(error_msg)
+            raise Exception(error_msg)
+    
+    def user_info_to_username(self, user_info):
+        username = super().user_info_to_username(user_info)
+
+        pprint(f"Parsing username: {username}")
+        pprint(user_info)
+        username, domain = username.split('@')
+        return ''.join((letter for letter in username.lower() if letter in string.ascii_lowercase))
 
 ################################################################################
 ## IAM Authenticator
@@ -839,24 +947,25 @@ class InfnSpawner(KubeSpawner):
 c.JupyterHub.tornado_settings = {'max_body_size': 1048576000, 'max_buffer_size': 1048576000}
 c.JupyterHub.log_level = 30
 
-c.JupyterHub.authenticator_class = IamAuthenticator
-c.GenericOAuthenticator.oauth_callback_url = OAUTH_CALLBACK_URL
+if AUTHENTICATOR == "GOOGLE":
+    c.JupyterHub.authenticator_class = ConfigurableGoogleAuthenticator
+    c.GoogleOAuthenticator.client_id = IAM_CLIENT_ID
+    c.GoogleOAuthenticator.client_secret = IAM_CLIENT_SECRET
+    c.GoogleOAuthenticator.allow_all = True
 
-c.GenericOAuthenticator.client_id = IAM_CLIENT_ID
-c.GenericOAuthenticator.client_secret = IAM_CLIENT_SECRET
-c.GenericOAuthenticator.authorize_url = OAUTH_ENDPOINT.strip('/') + '/authorize'
-c.GenericOAuthenticator.token_url = OAUTH_ENDPOINT.strip('/') + '/token'
-c.GenericOAuthenticator.userdata_url = OAUTH_ENDPOINT.strip('/') + '/userinfo'
-c.GenericOAuthenticator.scope = ['openid', 'profile', 'email', 'address', 'offline_access', 'iam'] #'wlcg', 'wlcg.groups']
-c.GenericOAuthenticator.username_claim = lambda d: d["preferred_username"].replace("_", "")
-c.GenericOAuthenticator.manage_groups = False
-
-#c.GenericOAuthenticator.allowed_groups = set(OAUTH_GROUPS.split(" "))
-#c.GenericOAuthenticator.admin_groups = set(OAUTH_ADMIN_GROUPS.split(" "))
-
-# c.GenericOAuthenticator.claim_groups_key = lambda d: [ g[1:] if g[0] in '/' else g for g in d["groups"]]
-
-c.GenericOAuthenticator.enable_auth_state = True
+elif AUTHENTICATOR == "IAM":
+    c.JupyterHub.authenticator_class = IamAuthenticator
+    c.GenericOAuthenticator.oauth_callback_url = OAUTH_CALLBACK_URL
+    
+    c.GenericOAuthenticator.client_id = IAM_CLIENT_ID
+    c.GenericOAuthenticator.client_secret = IAM_CLIENT_SECRET
+    c.GenericOAuthenticator.authorize_url = OAUTH_ENDPOINT.strip('/') + '/authorize'
+    c.GenericOAuthenticator.token_url = OAUTH_ENDPOINT.strip('/') + '/token'
+    c.GenericOAuthenticator.userdata_url = OAUTH_ENDPOINT.strip('/') + '/userinfo'
+    c.GenericOAuthenticator.scope = ['openid', 'profile', 'email', 'address', 'offline_access', 'iam'] #'wlcg', 'wlcg.groups']
+    c.GenericOAuthenticator.username_claim = lambda d: d["preferred_username"].replace("_", "")
+    c.GenericOAuthenticator.manage_groups = False
+    c.GenericOAuthenticator.enable_auth_state = True
 
 
 ################################################################################
