@@ -4,7 +4,7 @@
 NB_USER="${NB_USER}"
 
 SETUP_SCRIPT=${SETUP_SCRIPT:-"/envs/setup.sh"} 
-LOG_FILE="/var/logs/envs-setup.log"
+LOG_FILE="/var/log/envs-setup.log"
 
 if [ -z "$NB_USER" ]; then
 	echo "NB_USER environment variable not set."
