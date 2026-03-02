@@ -62,6 +62,10 @@ COPY ./sshd.conf /etc/ssh/sshd_config.d/aiinfn.conf
 COPY ./create_user_groups.py /usr/local/bin/before-notebook.d/05_create_user_groups.py
 RUN chmod a+rx /usr/local/bin/before-notebook.d/05_create_user_groups.py
 
+# Execute a custom script that can be hosted in NFS and mounted in /envs/setup.sh
+COPY ./exec_setup.sh /usr/local/bin/before-notebook.d/10_exec_setup.sh
+RUN chmod a+rx /usr/local/bin/before-notebook.d/10_exec_setup.sh
+
 RUN echo "rm -rf /home/jovyan" >  /usr/local/bin/before-notebook.d/99_cleanup_jovyan.sh 
 RUN chmod a+rx                    /usr/local/bin/before-notebook.d/99_cleanup_jovyan.sh 
 
