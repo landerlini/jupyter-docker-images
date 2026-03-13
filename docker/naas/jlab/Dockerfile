@@ -44,7 +44,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
         apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install vscode
-RUN curl --retry 5 --retry-delay 2 --retry-all-errors -fsSL https://code-server.dev/install.sh | sh
+RUN curl -fsSL https://raw.githubusercontent.com/cdr/code-server/main/install.sh | sh
 RUN python3 -m pip install \ 
         git+https://github.com/infn-datacloud/jupyter_codeserver_proxy.git \
         jupyter-resource-usage \
