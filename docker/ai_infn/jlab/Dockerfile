@@ -66,6 +66,10 @@ RUN chmod a+rx /usr/local/bin/before-notebook.d/05_create_user_groups.py
 COPY ./exec_setup.sh /usr/local/bin/before-notebook.d/10_exec_setup.sh
 RUN chmod a+rx /usr/local/bin/before-notebook.d/10_exec_setup.sh
 
+# Patches the start.sh script to support custom home directories
+COPY ./start.sh /usr/local/bin/start.sh
+RUN chmod a+rx /usr/local/bin/start.sh
+
 RUN echo "rm -rf /home/jovyan" >  /usr/local/bin/before-notebook.d/99_cleanup_jovyan.sh 
 RUN chmod a+rx                    /usr/local/bin/before-notebook.d/99_cleanup_jovyan.sh 
 
