@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-import socket
 import json
 from pprint import pprint, pformat
 import logging
@@ -10,22 +9,14 @@ from base64 import b64decode
 from contextlib import asynccontextmanager
 import traceback
 import textwrap
-import sys
-import subprocess
-import traceback
 
-from oauthenticator.oauth2 import OAuthenticator
 from oauthenticator.generic import GenericOAuthenticator
 from oauthenticator.google import GoogleOAuthenticator
-from tornado import gen
 from tornado.web import HTTPError
 from kubespawner import KubeSpawner
 import requests
 from requests.auth import HTTPBasicAuth
-import yaml
-import subprocess
 import warnings
-import asyncio
 import shutil
 import string
 
@@ -33,12 +24,6 @@ from typing import Dict, Collection
 
 import jinja2
 import kubernetes_asyncio as k8s
-from kubernetes_asyncio.client.models import (
-    V1Service, 
-    V1ObjectMeta, 
-    V1ServiceSpec, 
-    V1ServicePort
-)
 
 
 ################################################################################
@@ -113,6 +98,7 @@ DEBUG = os.environ.get("DEBUG", "").lower() in ["true", "yes", "y"]
 HOME_NAME = os.environ.get("HOME_NAME", "home")
 SSH_PORT = int(os.environ.get("SSH_PORT", 22))
 JHUB_NAMESPACE = os.environ.get("JHUB_NAMESPACE", "default")
+NFS_VOLUME_PREFIX = os.environ.get("NFS_VOLUME_PREFIX", JHUB_NAMESPACE)
 DEFAULT_SPLASH_MESSAGE = os.environ.get("DEFAULT_SPLASH_MESSAGE", "Welcome")
 DEFAULT_JLAB_IMAGES = json.loads(
   os.environ.get("DEFAULT_JLAB_IMAGES", '{"Default image": "harbor.cloud.infn.it/testbed-dm/ai-infn:0.1-pre10"}')
@@ -146,6 +132,9 @@ VKD_NAMESPACE = os.environ.get("VKD_NAMESPACE", "vkd")
 
 SYSTEM_VOLUMES = json.loads(os.environ.get("SYSTEM_VOLUMES", '["www", "vkd"]'))
 
+# Resources
+AVAILABLE_CPU = json.loads(os.environ.get("AVAILABLE_CPU", '[1, 2]'))
+AVAILABLE_MEMORY_GB = json.loads(os.environ.get("AVAILABLE_MEMORY_GB", '[4, 8]'))
 EXTENDED_RESOURCES = json.loads(os.environ.get("EXTENDED_RESOURCES", '["ai.infn.it/fuse"]'))
 
 
@@ -200,6 +189,40 @@ async def kubernetes_api(group: str = 'core'):
         raise Exception("Unknown kubernetes error")
 
 
+def setup_nfs_user(spawner):
+    """Access the management layer of NFS server via HTTPS and setup the user"""
+    username = spawner.get_user_name()
+    project_groups = spawner.get_user_groups()
+    logging.info(f"Setting up NFS user for {username} with groups {project_groups} and tenancy {NFS_VOLUME_PREFIX}")
+    nfs_user_response = requests.get(
+            f"http{'s' if NFS_SERVER_HTTP_TLS else ''}://{NFS_SERVER_ADDRESS}:{NFS_SERVER_HTTP_PORT}/ensure-user",
+            params=dict(name=username, groups='+'.join(project_groups), tenancy=NFS_VOLUME_PREFIX),
+            auth=HTTPBasicAuth(NFS_SERVER_ADMIN_USER, NFS_SERVER_ADMIN_PASSWORD),
+            )
+          
+
+
+    if nfs_user_response.status_code != 200:
+        return (
+           507, 
+           f"Failed while trying to ensure directories for user's home and groups. {nfs_user_response.text}"
+           )
+
+    try:
+        nfs_user_data = nfs_user_response.json()
+
+        spawner.environment['NB_USER'] = nfs_user_data['username']
+        spawner.environment['NB_UID'] = nfs_user_data['uid']
+        spawner.environment['NB_GID'] = nfs_user_data['gid']
+        spawner.environment['NB_GROUP'] = nfs_user_data['groupname']
+        spawner.environment['JUPYTER_SERVER_ROOT'] = f"/{HOME_NAME}"
+        spawner.environment['GRANT_SUDO'] = "1" if spawner.check_privilege('sudoer') else "0"
+        spawner.environment['NB_GROUPS'] = ', '.join([f"{g['gid']}:{g['name']}" for g in nfs_user_data['groups']])
+        return (200, nfs_user_data)
+    except ValueError:
+        return (500, "Invalid response from NFS server")
+
+
 class ConfigurableGoogleAuthenticator(GoogleOAuthenticator):
     """
     Configurable GoogleOAuthenticator specialized for Gmail-provided identities.
@@ -210,6 +233,8 @@ class ConfigurableGoogleAuthenticator(GoogleOAuthenticator):
       pprint ("User info:")
       user_info = auth_model["auth_state"][self.user_auth_state_key]
       pprint(user_info)
+
+      print ("Enabled auth_state:", self.enable_auth_state)
 
       domain = user_info.get('domain')
       email = user_info.get('email')
@@ -227,7 +252,7 @@ class ConfigurableGoogleAuthenticator(GoogleOAuthenticator):
           raise HTTPError(403, error_msg)
 
       if not user_allowed:
-          error_msg = f"This service is reserved to @unifi.it users. Your email '{email}' is not allowed."
+          error_msg = f"This service is reserved. Your email '{email}' is not allowed."
           self.log.error(error_msg)
           raise HTTPError(403, error_msg)
 
@@ -236,29 +261,36 @@ class ConfigurableGoogleAuthenticator(GoogleOAuthenticator):
       return auth_model
 
 
-    @gen.coroutine
-    def pre_spawn_start(self, user, spawner):
+    async def pre_spawn_start(self, user, spawner):
         """
         Function called during the spawning process to:
          * make sure the user is still authenticated and belongs to the right groups
          * copy (some) of the authentication tokens to the spawned single-user server as env var
 
         """
-        auth_state = yield user.get_auth_state()
+        self.log.info(f"Pre spawn start for user {str(user)}")
+        auth_state = await user.get_auth_state()
         if not auth_state:
             # user has no auth state
             warnings.warn("Could not retrieve user's auth_state at spawning")
             return
 
-        domain = auth_state.get('domain')
-        email = auth_state.get('email')
-        user_admin = (email in ('landerlini@gmail.com',))
-        user_allowed = (domain in 'unifi.it')
+        user_info = auth_state[self.user_auth_state_key]
+
+        domain = user_info.get('domain')
+        email = user_info.get('email')
+        user_admin = (email in ADMIN_GOOGLE_USERS)
+        user_allowed = (domain in ALLOWED_GOOGLE_DOMAINS) or (email in ALLOWED_GOOGLE_USERS) or user_admin
 
         if not user_allowed:
-            error_msg = f"User is not member of any of the allowed groups: {','.join(allowed_groups)}"
+            error_msg = f"User email '{email}' is not member of any of the allowed domains: {','.join(ALLOWED_GOOGLE_DOMAINS)}"
             self.log.error(error_msg)
-            raise Exception(error_msg)
+            self.throw_http(403, error_msg)
+        
+        # Setup the user on the NFS server
+        setup_res = setup_nfs_user(spawner)
+        if setup_res[0] != 200:
+            self.throw_http(*setup_res)
     
     def user_info_to_username(self, user_info):
         username = super().user_info_to_username(user_info)
@@ -267,6 +299,14 @@ class ConfigurableGoogleAuthenticator(GoogleOAuthenticator):
         pprint(user_info)
         username, domain = username.split('@')
         return ''.join((letter for letter in username.lower() if letter in string.ascii_lowercase))
+
+    def throw_http(self, status_code: int, error_msg: str):
+        self.log.error(error_msg)
+        self.log.error(traceback.print_exc())
+
+        exc = HTTPError(status_code, error_msg, headers={})
+        exc.headers = {}
+        raise exc
 
 ################################################################################
 ## IAM Authenticator
@@ -306,15 +346,14 @@ class IamAuthenticator(GenericOAuthenticator):
         raise exc
 
 
-    @gen.coroutine
-    def pre_spawn_start(self, user, spawner):
+    async def pre_spawn_start(self, user, spawner):
         """
         Function called during the spawning process to:
          * make sure the user is still authenticated and belongs to the right groups
          * copy (some) of the authentication tokens to the spawned single-user server as env var
 
         """
-        auth_state = yield user.get_auth_state()
+        auth_state = await user.get_auth_state()
         if not auth_state:
             # user has no auth state
             warnings.warn("Could not retrieve user's auth_state at spawning")
@@ -324,19 +363,10 @@ class IamAuthenticator(GenericOAuthenticator):
         project_groups = spawner.get_user_groups()
         print (f"project groups: {project_groups}")
 
-        nfs_user_response = requests.get(
-                f"http{'s' if NFS_SERVER_HTTP_TLS else ''}://{NFS_SERVER_ADDRESS}:{NFS_SERVER_HTTP_PORT}/ensure-user",
-                params=dict(name=username, groups='+'.join(project_groups)),
-                auth=HTTPBasicAuth(NFS_SERVER_ADMIN_USER, NFS_SERVER_ADMIN_PASSWORD),
-                )
-
-        if nfs_user_response.status_code != 200:
-            self.throw_http(507, f"Failed while trying to ensure directories for user's home and groups. {nfs_user_response.text}")
-
-        try:
-            nfs_user_data = nfs_user_response.json()
-        except ValueError:
-            self.throw_http(500, "Invalid response from NFS server")
+        # Setup the user on the NFS server
+        setup_res = setup_nfs_user(spawner)
+        if setup_res[0] != 200:
+            self.throw_http(*setup_res)
 
         # define some environment variables from auth_state
         self.log.info(auth_state)
@@ -347,13 +377,6 @@ class IamAuthenticator(GenericOAuthenticator):
         spawner.environment['REFRESH_TOKEN'] = auth_state['refresh_token']
         spawner.environment['USERNAME'] = auth_state['oauth_user']['preferred_username']
         spawner.environment['JUPYTERHUB_ACTIVITY_INTERVAL'] = "15"
-        spawner.environment['NB_USER'] = nfs_user_data['username']
-        spawner.environment['NB_UID'] = nfs_user_data['uid']
-        spawner.environment['NB_GID'] = nfs_user_data['gid']
-        spawner.environment['NB_GROUP'] = nfs_user_data['groupname']
-        spawner.environment['JUPYTER_SERVER_ROOT'] = f"/{HOME_NAME}"
-        spawner.environment['GRANT_SUDO'] = "1" if spawner.check_privilege('sudoer') else "0"
-        spawner.environment['NB_GROUPS'] = ', '.join([f"{g['gid']}:{g['name']}" for g in nfs_user_data['groups']])
 
         user_info = auth_state[self.user_auth_state_key]
         iam_groups = auth_state.get("oauth_user", {}).get("groups")
@@ -364,16 +387,6 @@ class IamAuthenticator(GenericOAuthenticator):
         if not user_allowed:
             self.throw_http(403, f"User is not member of any of the allowed groups: {','.join(allowed_groups)}")
 
-
-    # async def authenticate(self, handler, data=None):
-    #   auth_model = await GenericOAuthenticator.authenticate(self, handler, data)
-    #   pprint ("User info:")
-    #   user_info = auth_model["auth_state"][self.user_auth_state_key]
-    #   pprint(user_info)
-    #   pprint ("Groups:")
-    #   pprint (self.get_user_groups(user_info))
-
-    #   return auth_model
 
 
 
@@ -458,6 +471,14 @@ class InfnSpawner(KubeSpawner):
             return True
 
       return False
+
+    @property
+    def extra_annotations(self):
+        annotations = dict()
+        annotations.update({
+          "container.apparmor.security.beta.kubernetes.io/notebook": "unconfined",
+        })
+        return annotations
 
 
     @staticmethod
@@ -607,7 +628,7 @@ class InfnSpawner(KubeSpawner):
     @property
     def splash_manager(self):
       if not hasattr(self, "_splash_manager"): 
-        self._splash_manager = SplashManager(NFS_MOUNT_POINT / "www" / "splash.html" )
+        self._splash_manager = SplashManager(NFS_MOUNT_POINT / NFS_VOLUME_PREFIX / "www" / "splash.html" )
 
       return self._splash_manager
 
@@ -645,17 +666,17 @@ class InfnSpawner(KubeSpawner):
     def initialize_nfs_volumes():
         if NFS_SERVER_ADDRESS is not None:
           for name in ["envs", "public", *SYSTEM_VOLUMES]:
-              if not os.path.exists(NFS_MOUNT_POINT/name):
-                  os.mkdir(NFS_MOUNT_POINT/name)
+            os.makedirs(NFS_MOUNT_POINT/NFS_VOLUME_PREFIX/name, exist_ok=True)
 
           setup_filepath = Path(
-            f"{NFS_MOUNT_POINT}/{STARTUP_SCRIPT}".replace("//", "/").replace("//", "/")
+            f"{NFS_MOUNT_POINT}/{NFS_VOLUME_PREFIX}/{STARTUP_SCRIPT}".replace("//", "/").replace("//", "/")
           )
           setup_filepath_src = CONFIGMAP_MOUNT_PATH/"bootstrap-envs-setup.sh"
 
           if not os.path.exists(setup_filepath):
               logging.info(f"Initializing setup script, {setup_filepath_src} -> {setup_filepath}")
               shutil.copy2(setup_filepath_src, setup_filepath)
+              os.chmod(setup_filepath, 0o666)
           else:
               logging.info(f"Refuse to overwrite {setup_filepath} with {setup_filepath_src}")
 
@@ -672,13 +693,11 @@ class InfnSpawner(KubeSpawner):
       )  
 
     def nfs_volume(self, name):
-      # if not os.path.exists(NFS_MOUNT_POINT/name):
-      #   os.mkdir(NFS_MOUNT_POINT/name)
       return dict(
         name=name, 
         nfs=dict(
           server=NFS_SERVER_ADDRESS, 
-          path=f"/{name}"
+          path=f"/{NFS_VOLUME_PREFIX}/{name}"
         )
       )  
 
@@ -870,77 +889,6 @@ class InfnSpawner(KubeSpawner):
           )
 
 
-    #################################################################################
-    #### Configure SSH access
-    #### --------------------
-    #### Creates and destroy services associated to each container, to add to the DNS
-    #### an entry to reach the container from bastion.
-    #### To this purpose, we override the _start and stop methods with the raw calls 
-    #### to the kubernetes core API.
-    ####
-    #### To work, it also requires:
-    ####  * the bastion service enabled and the pod active
-    ####  * the sshd service running in the jupyter container (via `service ssh start`)
-    ####  * a valid public key stored in the `private/.ssh` directory of the jupyter
-    ####    container.
-
-    async def _start(self):
-        try:
-          await self._config_ssh_service()
-        except:
-          logging.error("SSH service could not start")
-          logging.error(traceback.print_exc())
-          pass
-        return await KubeSpawner._start(self)
-
-
-    async def stop(self, now=False):
-        try:
-          await self._delete_ssh_service()
-        except:
-          logging.error("SSH service could not be stopped")
-          logging.error(traceback.print_exc())
-          pass
-
-        return await KubeSpawner.stop(self, now)
-
-
-
-    async def _config_ssh_service(self):
-      logging.info("Setup SSH service")
-      async with kubernetes_api() as k:
-          await k.create_namespaced_service(
-            namespace=JHUB_NAMESPACE,
-            body=V1Service(
-              metadata=V1ObjectMeta(
-                name=f"sshd-{self.get_user_name()}",
-                labels={
-                  "app": "jupyterhub"
-                }
-              ),
-              spec=V1ServiceSpec(
-                type="ClusterIP",
-                ports=[
-                  V1ServicePort(name='sshd', port=SSH_PORT)
-                ],
-                selector={
-                  "app": "jupyterhub",
-                  "hub.jupyter.org/username": self.get_user_name(),
-                }
-              )
-            )
-          )
-
-
-    async def _delete_ssh_service(self):
-      logging.info("Cleanup SSH service")
-      async with kubernetes_api() as k:
-          await k.delete_namespaced_service(
-            namespace=JHUB_NAMESPACE,
-            name=f"sshd-{self.get_user_name()}",
-          )
-
-
 ################################################################################
 ## Authentication setup
 
@@ -952,6 +900,13 @@ if AUTHENTICATOR == "GOOGLE":
     c.GoogleOAuthenticator.client_id = IAM_CLIENT_ID
     c.GoogleOAuthenticator.client_secret = IAM_CLIENT_SECRET
     c.GoogleOAuthenticator.allow_all = True
+    c.GoogleOAuthenticator.manage_groups = False
+    c.GoogleOAuthenticator.enable_auth_state = True
+    c.GoogleOAuthenticator.extra_authorize_params = {
+       'access_type': 'offline', 'prompt': 'consent'
+    }
+    c.GenericOAuthenticator.manage_groups = False
+    c.GenericOAuthenticator.enable_auth_state = True
 
 elif AUTHENTICATOR == "IAM":
     c.JupyterHub.authenticator_class = IamAuthenticator
@@ -1043,8 +998,8 @@ async def aiinfn_option_form (self):
       return jinja2.Template(f.read()).render(
         splash_message=self.splash_manager.message(**id_vars),
         **id_vars,
-        cpus=sorted([1, 2, 3, 4, 8] + self.get_group_allowance('cpu')),
-        mem_sizes=sorted([2, 4, 8] + self.get_group_allowance('mem_gb')),
+        cpus=sorted(AVAILABLE_CPU + self.get_group_allowance('cpu')),
+        mem_sizes=sorted(AVAILABLE_MEMORY_GB + self.get_group_allowance('mem_gb')),
         accelerators=[
           dict(
               type=acc["type"],
