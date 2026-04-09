@@ -2,7 +2,7 @@
 
 # This script is a wrapper to execute apptainer sandboxes using proot, allowing to run them without root privileges.
 
-./proot \
+proot \
     --bind=/dev \
     --bind=/var/tmp \
     --bind=/home \
