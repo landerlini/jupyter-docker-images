@@ -53,6 +53,12 @@ RUN chmod a+rx /usr/bin/juicefs
 ADD https://repo.cloud.cnaf.infn.it/repository/sts-wire/sts-wire-linux/2.1.5/sts-wire-linux-2.1.5 /usr/local/bin/sts-wire
 RUN chmod +x /usr/local/bin/sts-wire
 
+# Install proot and a wrapper to execute apptainer sandboxes 
+ADD https://proot.gitlab.io/proot/bin/proot /usr/local/bin/proot
+COPY ./proot.sh /usr/local/bin/proot.sh
+RUN chmod +x /usr/local/bin/proot && \
+    chmod +x /usr/local/bin/proot.sh
+
 # Changes the home directory of the user to private
 RUN sed -i 's/:\/root:/:\/home\/private:/g' /etc/passwd
 
