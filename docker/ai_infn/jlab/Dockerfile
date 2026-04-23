@@ -74,4 +74,7 @@ RUN chmod a+rx /usr/local/bin/start.sh
 RUN echo "rm -rf /home/jovyan" >  /usr/local/bin/before-notebook.d/99_cleanup_jovyan.sh 
 RUN chmod a+rx                    /usr/local/bin/before-notebook.d/99_cleanup_jovyan.sh 
 
+# Creates an entry point for node caching, useful for interLink
+RUN mkdir /cache && chmod a+rwX /cache
+
 WORKDIR /home
