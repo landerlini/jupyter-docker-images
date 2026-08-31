@@ -1,5 +1,5 @@
-# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-ai-infn:2.1.1-ai1.5" 
-ARG BASE_IMAGE="harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.1" 
+# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-ai-infn:2.1.2-ai1.5" 
+ARG BASE_IMAGE="harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.2" 
 FROM ${BASE_IMAGE}
 
 # RUN splitted to Install apptainer, cvmfs and openssh-server
@@ -19,7 +19,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 #      cvmfs \
 #      cvmfs-fuse3 \
       cvmfs-libs \
-      libgl1-mesa-glx \    
+      # libgl1-mesa-glx \    obsoleto per ubuntu > 23
+      libgl1 \ 
+      libglx-mesa0 \
       openssh-server \
       xvfb \
       # Remote desktop:

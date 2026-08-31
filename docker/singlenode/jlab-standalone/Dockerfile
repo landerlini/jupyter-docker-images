@@ -1,5 +1,5 @@
-# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-standalone:2.1.1
-ARG BASE_IMAGE="harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.1" 
+# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-standalone:2.1.2
+ARG BASE_IMAGE="harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.2" 
 FROM ${BASE_IMAGE}
 
 USER root

@@ -1,6 +1,6 @@
-# Image name: harbor.cloud.infn.it/datacloud-jupyter/jhub-singlenode:2.1.1
+# Image name: harbor.cloud.infn.it/datacloud-jupyter/jhub-singlenode:2.1.2
 
-FROM jupyterhub/jupyterhub:4.1.5
+FROM jupyterhub/jupyterhub:5.4.3
 
 #RUN mkdir -p /.init
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \

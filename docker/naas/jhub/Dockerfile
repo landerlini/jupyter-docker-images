@@ -1,6 +1,6 @@
-# Image name: harbor.cloud.infn.it/datacloud-templates/jhub-naas:2.1.1
+# Image name: harbor.cloud.infn.it/datacloud-templates/jhub-naas:2.1.2
 
-FROM jupyterhub/k8s-hub:4.3.0
+FROM jupyterhub/k8s-hub:4.3.2
 
 USER root
 

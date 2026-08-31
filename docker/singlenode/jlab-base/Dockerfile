@@ -1,6 +1,6 @@
-# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.1
+# Image name: harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.2
 
-ARG BASE_IMAGE="quay.io/jupyter/minimal-notebook:ubuntu-22.04" 
+ARG BASE_IMAGE="quay.io/jupyter/minimal-notebook:ubuntu-24.04" 
 FROM ${BASE_IMAGE}
 
 USER root

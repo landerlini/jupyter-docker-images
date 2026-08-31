@@ -43,7 +43,7 @@ pipeline {
         REPO_NAME =                  'datacloud-jupyter'
         
         // General section
-        TAG_NAME =                   '2.1.1'
+        TAG_NAME =                   '2.2.0'
 
         // Singlenode section
         JHUB_IMAGE_NAME =            'jhub-singlenode'
@@ -54,7 +54,7 @@ pipeline {
         SN_JLAB_STANDALONE_PATH =    'docker/singlenode/jlab-standalone'
 
         // AI_INFN section
-        AI_INFN_REPO_NAME =          'unpacked' 
+        AI_INFN_REPO_NAME =          'unpacked-ai-infn' 
         AI_INFN_TAG_NAME =           'ai1.5'
         AI_INFN_JLAB_IMAGE_NAME =    'jlab-ai-infn'
         AI_INFN_JLAB_PATH =          'docker/ai_infn/jlab'
@@ -78,7 +78,7 @@ pipeline {
     }
 
     triggers {
-        cron('H H/1 * * *') 
+        cron('H H * * H') 
     }
 
     stages {
