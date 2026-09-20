@@ -68,7 +68,8 @@ RUN groupadd -g 401 slurm && \
     useradd -r -u 401 -g 401 -M -s /usr/sbin/nologin slurm && \
     mkdir -p /slurm && \
     ln -s ${SLURM_LOGIN_CVMFS}/usr/bin /slurm/bin && \
-    ln -s ${SLURM_LOGIN_CVMFS}/usr/lib/x86_64-linux-gnu /slurm/lib/
+    ln -s ${SLURM_LOGIN_CVMFS}/usr/lib/x86_64-linux-gnu /slurm/lib/ && \
+    ln -s /slurm/lib/slurm /usr/lib/x86_64-linux-gnu/slurm
 
 ENV PATH="${PATH}:/slurm/bin"
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/slurm/lib"
