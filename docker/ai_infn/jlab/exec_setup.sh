@@ -11,6 +11,13 @@ if [ -z "$NB_USER" ]; then
 	exit 0
 fi
 
+if [ -e "/mnt/slurm/slurm.key"]; then
+	mkdir -p /etc/slurm
+	cp /mnt/slurm/slurm.key /etc/slurm
+	chown slurm /etc/slurm/slurm.key
+	chmod 400 /etc/slurm/slurm.key
+fi
+
 
 if [ -f "$SETUP_SCRIPT" ]; then
 	# Run setup script as NB_USER in background with 5 min timeout
