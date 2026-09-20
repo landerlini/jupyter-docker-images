@@ -30,7 +30,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
       xorg \
       xfce4 xfce4-panel xfce4-session xfce4-settings breeze-icon-theme kde-plasma-desktop \
       tigervnc-standalone-server \
-    && \
+      # Slurm
+      libjwt2 \
+      && \
     apt-get clean && rm -rf /var/lib/apt/lists/* cvmfs-release-latest_all.deb 
 
 # Update conda and python version
