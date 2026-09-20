@@ -11,16 +11,22 @@ if [ -z "$NB_USER" ]; then
 	exit 0
 fi
 
-if [ -e "/mnt/slurm/slurm.key"]; then
-	mkdir -p /etc/slurm
-	cp /mnt/slurm/slurm.key /etc/slurm
-	chown slurm /etc/slurm/slurm.key
-	chmod 400 /etc/slurm/slurm.key
-	if [ -e "/slurm/sbin/sackd"]; then
-		(
-			sudo -u slurm /slurm/sbin/sackd -D $SACKD_ARGS | tee /var/log/slurm-sackd.log 
-		) &
-	fi
+if [ -e "/mnt/slurm/slurm.key" ]; then
+        mkdir -p /etc/slurm
+        cp /mnt/slurm/slurm.key /etc/slurm
+        chown slurm /etc/slurm/slurm.key
+        chmod 400 /etc/slurm/slurm.key
+
+        mkdir /run/slurm
+        chown slurm /run/slurm
+
+        if [ -e "/slurm/sbin/sackd" ]; then
+                (
+                        sudo -u slurm \
+							LD_LIBRARY_PATH=/slurm/lib/slurm /slurm/sbin/sackd -D $SACKD_ARGS \
+							| tee /var/log/slurm-sackd.log  > /dev/null
+                ) &
+        fi
 fi
 
 
