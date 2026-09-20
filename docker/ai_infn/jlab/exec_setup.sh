@@ -16,6 +16,11 @@ if [ -e "/mnt/slurm/slurm.key"]; then
 	cp /mnt/slurm/slurm.key /etc/slurm
 	chown slurm /etc/slurm/slurm.key
 	chmod 400 /etc/slurm/slurm.key
+	if [ -e "/mnt/slurm/slurm.key"]; then
+		(
+			sudo -u slurm /slurm/sbin/sackd -D $SACKD_ARGS | tee /var/log/slurm-sackd.log 
+		) &
+	fi
 fi
 
 
