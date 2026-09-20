@@ -1,6 +1,6 @@
 # Image name: harbor.cloud.infn.it/datacloud-templates/jlab-ai-infn:2.1.2-ai1.5" 
 ARG BASE_IMAGE="harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.2" 
-ARG SLURM_LOGIN_CVMFS="/cvmfs/unpacked.infn.it/harbor.cloud.infn.it/unpacked-ai-infn/anderlinil/slinkyproject/login:26.05-ubuntu24.04
+
 
 FROM ${BASE_IMAGE}
 
