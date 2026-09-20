@@ -1,8 +1,9 @@
 # Image name: harbor.cloud.infn.it/datacloud-templates/jlab-ai-infn:2.1.2-ai1.5" 
 ARG BASE_IMAGE="harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.2" 
-
+ 
 
 FROM ${BASE_IMAGE}
+ARG SLINKY_LOGIN_IMAGE=ghcr.io/slinkyproject/login:26.05-ubuntu24.04
 
 # RUN splitted to Install apptainer, cvmfs and openssh-server
 # Install apptainer, cvmfs and openssh-server
@@ -70,12 +71,12 @@ RUN chmod a+rx /usr/local/bin/proot && \
 RUN groupadd -g 401 slurm && \
     useradd -r -u 401 -g 401 -M -s /usr/sbin/nologin slurm
 
-COPY --from=ghcr.io/slinkyproject/login:26.05-ubuntu24.04 /usr/lib/x86_64-linux-gnu /slurm/lib
-COPY --from=ghcr.io/slinkyproject/login:26.05-ubuntu24.04 /usr/bin /slurm/bin
-COPY --from=ghcr.io/slinkyproject/login:26.05-ubuntu24.04 /usr/sbin /slurm/sbin
+COPY --from=${SLINKY_LOGIN_IMAGE} /usr/lib/x86_64-linux-gnu /slurm/lib
+COPY --from=${SLINKY_LOGIN_IMAGE} /usr/bin /slurm/bin
+COPY --from=${SLINKY_LOGIN_IMAGE} /usr/sbin /slurm/sbin
 
 ENV PATH="${PATH}:/slurm/bin"
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/slurm/lib"
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/slurm/lib/slurm"
 
 
 # Changes the home directory of the user to private
