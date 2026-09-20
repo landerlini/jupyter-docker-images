@@ -72,12 +72,11 @@ RUN chmod a+rx /usr/local/bin/proot && \
 RUN groupadd -g 401 slurm && \
     useradd -r -u 401 -g 401 -M -s /usr/sbin/nologin slurm
 
-COPY --from=slinky_login /usr/lib/x86_64-linux-gnu /slurm/lib
+COPY --from=slinky_login /usr/lib/x86_64-linux-gnu/slurm /slurm/lib/slurm
 COPY --from=slinky_login /usr/bin /slurm/bin
 COPY --from=slinky_login /usr/sbin /slurm/sbin
 
 ENV PATH="${PATH}:/slurm/bin"
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/slurm/lib/slurm"
 
 
 # Changes the home directory of the user to private
