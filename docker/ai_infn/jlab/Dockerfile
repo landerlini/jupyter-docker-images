@@ -1,6 +1,7 @@
 # Image name: harbor.cloud.infn.it/datacloud-templates/jlab-ai-infn:2.1.2-ai1.5" 
 ARG BASE_IMAGE="harbor.cloud.infn.it/datacloud-templates/jlab-base:2.1.2" 
-ARG SLURM_LOGIN_CVMFS="/cvmfs/unpacked.infn.it/harbor.cloud.infn.it/unpacked-ai-infn/anderlinil/slinkyproject/login:26.05-ubuntu24.04"
+ARG SLURM_LOGIN_CVMFS="/cvmfs/unpacked.infn.it/harbor.cloud.infn.it/unpacked-ai-infn/anderlinil/slinkyproject/login:26.05-ubuntu24.04
+
 FROM ${BASE_IMAGE}
 
 # RUN splitted to Install apptainer, cvmfs and openssh-server
@@ -67,14 +68,15 @@ RUN chmod a+rx /usr/local/bin/proot && \
 
 # Make sure user SLURM is defined and consistent with slinky convention on id
 RUN groupadd -g 401 slurm && \
-    useradd -r -u 401 -g 401 -M -s /usr/sbin/nologin slurm && \
-    mkdir -p /slurm && \
-    ln -s $SLURM_LOGIN_CVMFS/usr/bin /slurm/bin && \
-    ln -s $SLURM_LOGIN_CVMFS/usr/lib/x86_64-linux-gnu /slurm/lib && \
-    ln -s /slurm/lib/slurm /usr/lib/x86_64-linux-gnu/slurm
+    useradd -r -u 401 -g 401 -M -s /usr/sbin/nologin slurm
+
+COPY --from=ghcr.io/slinkyproject/login:26.05-ubuntu24.04 /usr/lib/x86_64-linux-gnu /slurm/lib
+COPY --from=ghcr.io/slinkyproject/login:26.05-ubuntu24.04 /usr/bin /slurm/bin
+COPY --from=ghcr.io/slinkyproject/login:26.05-ubuntu24.04 /usr/sbin /slurm/sbin
 
 ENV PATH="${PATH}:/slurm/bin"
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/slurm/lib"
+
 
 # Changes the home directory of the user to private
 RUN sed -i 's/:\/root:/:\/home\/private:/g' /etc/passwd
