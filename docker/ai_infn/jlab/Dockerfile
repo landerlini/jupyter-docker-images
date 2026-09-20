@@ -31,7 +31,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
       # Remote desktop:
       dbus-x11 \
       xorg \
-      xfce4 xfce4-panel xfce4-session xfce4-settings breeze-icon-theme kde-plasma-desktop \
+      xfce4 xfce4-panel xfce4-session xfce4-settings breeze-icon-theme \
       tigervnc-standalone-server \
       # Slurm
       libjwt2 \
