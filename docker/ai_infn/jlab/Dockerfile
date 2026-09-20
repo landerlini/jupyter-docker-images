@@ -35,6 +35,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
       tigervnc-standalone-server \
       # Slurm
       libjwt2 \
+      libhttp-parser2.9 \
       && \
     apt-get clean && rm -rf /var/lib/apt/lists/* cvmfs-release-latest_all.deb 
 
